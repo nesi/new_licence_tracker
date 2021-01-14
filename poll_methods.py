@@ -99,7 +99,7 @@ class lmutil(PollMethod):
         #     r"^.* license server (?P<last_stat>.*) v(?P<version>.*)$", flags=re.M)
 
         feature_pattern = re.compile(
-            r"^(?:Users of )*(?P<feature>\S+):  \(Total of (?P<total>\d+) licenses issued;  Total of (?P<inuse>\d*) license.? in use\)\n\n.+\n.+\n(?P<userblok>(?:\n.+)*)\n\n", flags=re.M)
+            r"^(?:Users of )*(?P<feature>\S+):  \(Total of (?P<total>\d+) license.? issued;  Total of (?P<inuse>\d*) license.? in use\)(?:\n\n.+\n.+\n(?P<userblok>(?:\n.+)*))?", flags=re.M)
         # User/host pattern
         cmd_string = f"utils/linx64/lmutil lmstat -a -c {self.licence['licence_file_path']}"
         cmd_out = utils.run_cmd(cmd_string)
