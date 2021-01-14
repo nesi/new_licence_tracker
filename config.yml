@@ -1,0 +1,27 @@
+---
+user: nesi-apps-admin
+path_modulelist: "../module_tracker/module_list.json"
+licence_conf: "./licences.yml"
+default_licence_conf: "./default_licences.yml"
+promethius_conf: "./utils/prometheus.yml"
+fail_tolerance: 3
+resources: 
+  mahuika:
+    pattern: .*(mahuika|wbn\d{3}|wbg\d{3}|vgpuwbg\d{3}|wbl\d{3}|wch\d{3}|wbh\d{3}|wcl\d{3}).*
+  maui:
+    pattern: .*(maui|nid\d{5}).*
+  maui_ancil:
+    pattern: .*(maui_ancil|wsn\d{3}|vgpuwsg\d{3}).*
+  other:
+    pattern: .*(nesi|niwa).*
+
+# Currently unused.
+fix_slurm_share: true
+fix_slurm_count: true
+check_user: true
+loglevel: info
+validate: true
+soak: true
+squeue_poll_period: 60
+
+  
