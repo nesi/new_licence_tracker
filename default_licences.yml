@@ -15,7 +15,7 @@
   server_type: "FLEXlm"
   server_version: ""
   server_track_users: true # Whether to record users.
-  server_prom_job: "licences_normal" # Promethius job to use.
+  server_prom_job: licences_normal # Promethius job to use.
   software_name: "" # Software name as per lmod.
   allowed_clusters:
     - "mahuika"
