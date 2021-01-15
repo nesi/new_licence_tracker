@@ -25,7 +25,7 @@ class PollMethod(object):
 
     def __call__(self):
         # Check licence servers, catch failures.
-        if self.failed_attempts > self.failed_attempt_threshold:
+        if self.failed_attempts >= self.failed_attempt_threshold:
             return
         try:
             for feature_match in self._yield_features():
@@ -46,19 +46,21 @@ class PollMethod(object):
                     # If recording users, do.
                     if self.licence["server_track_users"]:
                         user_dict={"offsite_user":{"offsite_host":{"offsite_host":0}}}
-                        for user_match in self._yield_users(feature_match_dict):
-                            # Dictionary of 'user', 'host' key pairs.'user_match_dictionary' shorted to umd else line got really long.
-                            umd = user_match.groupdict()
-                            # If no number of licences specified, us '1'
-                            count = int(
-                                umd["count"]) if "count" in umd else 1
-                            # For each match.
-                            for cluster, pattern in self.patterns.items():
-                                if pattern.match(umd["host"]):
-                                    utils.add_or_incriment(user_dict, [umd["user"], cluster, umd["host"]], count)
-                                    break
-                            else:
-                                user_dict["offsite_user"]["offsite_host"]["offsite_host"]+=count
+                        user_matches=self._yield_users(feature_match_dict)
+                        if user_matches:
+                            for user_match in user_matches:
+                                # Dictionary of 'user', 'host' key pairs.'user_match_dictionary' shorted to umd else line got really long.
+                                umd = user_match.groupdict()
+                                # If no number of licences specified, us '1'
+                                count = int(
+                                    umd["count"]) if "count" in umd else 1
+                                # For each match.
+                                for cluster, pattern in self.patterns.items():
+                                    if pattern.match(umd["host"]):
+                                        utils.add_or_incriment(user_dict, [umd["user"], cluster, umd["host"]], count)
+                                        break
+                                else:
+                                    user_dict["offsite_user"]["offsite_host"]["offsite_host"]+=count
                         for user, clusters in user_dict.items():
                             for cluster, hosts in clusters.items():
                                 for host, count in hosts.items():
