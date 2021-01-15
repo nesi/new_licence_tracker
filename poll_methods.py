@@ -7,10 +7,10 @@ conf = utils.load_conf("config.yml")
 class PollMethod(object):
     """Each child class must include a '_yield_features() and '_yield_users()' method """
 
-    def __init__(self, _licence, _gauge_used, _gauge_total, _gauge_users):
+    def __init__(self, _licence, _gauge_free, _gauge_total, _gauge_users):
         self.licence = _licence
 
-        self.gauge_used = _gauge_used
+        self.gauge_free = _gauge_free
         self.gauge_total = _gauge_total
         self.gauge_users = _gauge_users
 
@@ -39,7 +39,7 @@ class PollMethod(object):
                     # (institution_short, faculty_short, software_name, feature, slurm_token_name)
                     common_tags = ( self.licence["institution_short"], self.licence["faculty_short"], self.licence["software_name"], feature_match_dict["feature"], self.licence["tracked_features"][feature_match_dict["feature"]]["slurm_token_name"] )
 
-                    self.gauge_used.add_metric(common_tags, int(feature_match_dict['inuse']))
+                    self.gauge_free.add_metric(common_tags, int(feature_match_dict['total']) - int(feature_match_dict['inuse']))
                     self.gauge_total.add_metric(common_tags, int(feature_match_dict['total']))
                     log.debug(
                         f"{feature_match_dict['feature']}: {feature_match_dict['inuse']}/{feature_match_dict['total']}")
