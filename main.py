@@ -70,6 +70,7 @@ if __name__ == '__main__':
         if not licences_on_job:
             log.debug("skipping empty frequency")
             continue
+        #if True:
         try:
             # Create registry and start server.
             registry_for_interval = CollectorRegistry(auto_describe=True)
@@ -77,7 +78,7 @@ if __name__ == '__main__':
             log.info(f"Starting polling {len(licences_on_job)} servers at {scrape_interval} interval on Promethius port {port}")
             start_http_server(int(port), host, registry_for_interval)
             registry_for_interval.register(LicenceCollector(licences_on_job))
-
+        #if False:
         except Exception as e:
             log.error(f"Could not start promethius server {e}")
 

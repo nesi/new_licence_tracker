@@ -28,6 +28,7 @@ class PollMethod(object):
         if self.failed_attempts >= self.failed_attempt_threshold:
             return
         try:
+        #if True:
             for feature_match in self._yield_features():
                 # Extract feature dictionary from regex match object
                 feature_match_dict = feature_match.groupdict()
@@ -72,6 +73,7 @@ class PollMethod(object):
                         # TODO update untracked dcitionary.
                 #Reset attempts.
                 self.failed_attempts = 0
+        #if False:
         except Exception as e:
             self.failed_attempts += 1
             log.error(
@@ -113,6 +115,9 @@ class lmutil(PollMethod):
         return feature_pattern.finditer(cmd_out)
 
     def _yield_users(self, feature):
+        # If no users. Return none.
+        if not feature["userblok"]:
+            return None
         user_pattern = re.compile(
             r"^\s*(?P<user>\S*)\s(?P<host>\S*)\s.*", flags=re.M)
 
