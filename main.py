@@ -19,7 +19,7 @@ class LicenceCollector():
         self.gauge_total = GaugeMetricFamily("flexlm_licenses_issued", 'Unused license tokens', labels=[
                                              'institution', 'faculty', 'app', 'feature', 'token'])
         self.gauge_users = GaugeMetricFamily("flexlm_licenses_used", 'Unused license tokens', labels=[
-                                             'institution', 'faculty', 'app', 'feature', 'token', 'user', 'cluster', 'host'])
+                                             'institution', 'faculty', 'app', 'feature', 'token','user', 'cluster', 'nodetype'])
 
         # Create an instance of the 'poller' class per licence server.
         self.licence_server_pollers = []

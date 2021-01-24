@@ -7,13 +7,13 @@ promethius_conf: "./utils/prometheus.yml"
 fail_tolerance: 3
 resources: 
   mahuika:
-    pattern: .*(mahuika|wbn\d{3}|wbg\d{3}|vgpuwbg\d{3}|wbl\d{3}|wch\d{3}|wbh\d{3}|wcl\d{3}).*
+    pattern: mahuika(?=\d{2})|(wbn|wbg|vgpuwbg|wbl|wch|wbh|wcl)(?=\d{3})
   maui:
-    pattern: .*(maui|nid\d{5}).*
+    pattern: maui(?=\d{2})|nid(?=\d{5})
   maui_ancil:
-    pattern: .*(maui_ancil|wsn\d{3}|vgpuwsg\d{3}).*
+    pattern: wsn\d{3}|vgpuwsg\d{3}
   other:
-    pattern: .*(nesi|niwa).*
+    pattern: nesi\S?|niwa\S?
 
 # Currently unused.
 fix_slurm_share: true

@@ -11,10 +11,15 @@ scrape_configs:
   - job_name: 'licences_normal'
     static_configs:
     - targets: ['localhost:9401']
-    scrape_interval: 15m
+    scrape_interval: 30s
   - job_name: 'licences_low'
     static_configs:
     - targets: ['localhost:9402']
-    scrape_interval: 15m
+    scrape_interval: 5m
     
-    
+alerting:
+  alertmanagers:
+  - scheme: https
+    static_configs:
+    - targets:
+      - "localhost:9093"
