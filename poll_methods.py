@@ -2,17 +2,17 @@ from clog import log
 import re
 import utils
 
-conf = utils.load_conf("config.yml")
+conf = utils.load_yaml("config.yml")
 
 class PollMethod(object):
     """Each child class must include a '_yield_features() and '_yield_users()' method """
 
-    def __init__(self, _licence, _gauge_free, _gauge_total, _gauge_users):
+    def __init__(self, _licence, _gauge_free, _gauge_total, _gauge_used):
         self.licence = _licence
 
         self.gauge_free = _gauge_free
         self.gauge_total = _gauge_total
-        self.gauge_users = _gauge_users
+        self.gauge_used = _gauge_used
 
         self.failed_attempts = 0
         self.failed_attempt_threshold = conf["fail_tolerance"]
@@ -31,49 +31,49 @@ class PollMethod(object):
         #if True:
             for feature_match in self._yield_features():
                 # Extract feature dictionary from regex match object
-                feature_match_dict = feature_match.groupdict()
-                    
+                feature_match_dict = feature_match.groupdict()                  
                 # If there are tracked features, and this is one of them.
-                if self.licence["tracked_features"] and feature_match_dict["feature"] in self.licence["tracked_features"]:
-                    # Tags used by all of these metrics. 
-                    # (institution_short, faculty_short, software_name, feature, slurm_token_name)
-                    common_tags = ( self.licence["institution_short"], self.licence["faculty_short"], self.licence["software_name"], feature_match_dict["feature"], self.licence["tracked_features"][feature_match_dict["feature"]]["slurm_token_name"] )
-                    free=int(feature_match_dict['total']) - int(feature_match_dict['inuse'])
-                    total= int(feature_match_dict['total'])
-                    self.gauge_free.add_metric(common_tags, free)
-                    self.gauge_total.add_metric(common_tags, total)
-                    log.debug(feature_match_dict['feature'])
-                    log.debug(f"free: {str(free)}")
-                    log.debug(f"total: {str(total)}")
+                if not self.licence["tracked_features"] or feature_match_dict["feature"] not in self.licence["tracked_features"]:
+                    continue
+                
+                # Tags used by all of these metrics. 
+                # (institution_short, faculty_short, software_name, feature, slurm_token_name)
+                common_tags = ( self.licence["institution_short"], self.licence["faculty_short"], self.licence["software_name"], feature_match_dict["feature"], self.licence["tracked_features"][feature_match_dict["feature"]]["slurm_token_name"] )
+                free=int(feature_match_dict['total']) - int(feature_match_dict['inuse'])
+                total= int(feature_match_dict['total'])
+                
+                self.gauge_free.add_metric(common_tags, free)
+                self.gauge_total.add_metric(common_tags, total)
 
-                    # If recording users, do.
-                    if self.licence["server_track_users"]:
-                        user_dict={"offsite_user":{"offsite_host":{"offsite_host":0}}}
-                        user_matches = self._yield_users(feature_match_dict)
-                        if user_matches:
-                            for user_match in user_matches:
-                                # Dictionary of 'user', 'host' key pairs.'user_match_dictionary' shorted to umd else line got really long.
-                                umd = user_match.groupdict()
-                                # If no number of licences specified, us '1'
-                                count = int(
-                                    umd["count"]) if "count" in umd else 1
-                                # For each match.
-                                for cluster, pattern in self.patterns.items():
-                                    hostmatch=pattern.search(umd["host"])
-                                    if hostmatch:
-                                        utils.add_or_incriment(user_dict, [umd["user"], cluster, hostmatch.group(0)], count)
-                                        break
-                                else:
-                                    user_dict["offsite_user"]["offsite_host"]["offsite_host"]+=count
-                        for user, clusters in user_dict.items():
-                            for cluster, nodetypes in clusters.items():
-                                for nodetype, count in nodetypes.items():
-                                    self.gauge_users.add_metric(common_tags + ( user, cluster, nodetype ), count)
-                        log.debug("used: " + str(user_dict))
-                elif self.licence["untracked_features"] and feature_match_dict["feature"] not in self.licence["untracked_features"]:
-                    log.info(
-                        f"Untracked untracked feature '{feature_match_dict['feature']}' found")
-                        # TODO update untracked dcitionary.
+                log.debug(feature_match_dict['feature'])
+                log.debug(f"free: {str(free)}")
+                log.debug(f"total: {str(total)}")
+
+                # If recording users, do.
+                if self.licence["server_track_users"]:
+                    user_dict={"offsite_user":{"offsite_host":{"offsite_host":0}}}
+                    user_matches = self._yield_users(feature_match_dict)
+                    if user_matches:
+                        for user_match in user_matches:
+                            # Dictionary of 'user', 'host' key pairs.'user_match_dictionary' shorted to umd else line got really long.
+                            umd = user_match.groupdict()
+                            # If no number of licences specified, us '1'
+                            count = int(
+                                umd["count"]) if "count" in umd else 1
+                            # For each match.
+                            for cluster, pattern in self.patterns.items():
+                                hostmatch=pattern.search(umd["host"])
+                                if hostmatch:
+                                    utils.add_or_incriment(user_dict, [umd["user"], cluster, hostmatch.group(0)], count)
+                                    break
+                            else:
+                                user_dict["offsite_user"]["offsite_host"]["offsite_host"]+=count
+                    for user, clusters in user_dict.items():
+                        for cluster, nodetypes in clusters.items():
+                            for nodetype, count in nodetypes.items():
+                                self.gauge_used.add_metric(common_tags + ( user, cluster, nodetype ), count)
+                    log.debug("used: " + str(user_dict))
+                    # TODO update untracked dcitionary.
                 #Reset attempts.
                 self.failed_attempts = 0
         #if False:

@@ -1,6 +1,7 @@
-import ruamel.yaml as yaml # Fancy YAML parser to keep comments.
+import yaml
 from clog import log
 import subprocess
+import sys
 
 # To keep config as short as possible, only properties that differ from the norm need setting.
 # This object should be able to be written back to YAML, *with comments* and no duplicate info.
@@ -20,16 +21,15 @@ class DDict(dict):
             return   
 
     def __setitem__(self, key, value):
-        self.new_values[key]=value
         if key not in self.default_values:
             print(f"Error. '{key}' is not a valid key.")
         elif value != self.default_values[key]:
-            self.new_values = value
+            self.new_values[key]=value
 
 def load_licences(config_path, defaults_path):
     """Loads yaml files and returns list of 'ddict' """
-    licence = yaml.YAML().load(open(config_path))
-    default_licence = yaml.YAML().load(open(defaults_path))[0]
+    licence = yaml.load(open(config_path), Loader=yaml.FullLoader)
+    default_licence = yaml.load(open(defaults_path), Loader=yaml.FullLoader)[0]
     default_feature = default_licence["tracked_features"]["example_feature"]
 
     # Create list of DDicts.
@@ -43,8 +43,16 @@ def load_licences(config_path, defaults_path):
 
     return licences
 
-def load_conf(conf):
-    return yaml.YAML().load(open(conf))
+def save_yaml(ddict, conf):
+    yaml.dump(ddict, open(conf, "w"))
+    log.debug(f"Saved '{conf}'.")
+
+def load_yaml(conf):    
+    ddict=yaml.load(open(conf), Loader=yaml.FullLoader)
+    # Make backup
+    yaml.dump(ddict, open(f"{conf}.bkp", "w"))
+    log.debug(f"Loaded '{conf}'.")
+    return ddict
 
 def run_cmd(cmd_string):
     log.debug(f"Running command '{cmd_string}'")
