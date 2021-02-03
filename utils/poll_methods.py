@@ -105,7 +105,7 @@ class PollMethod(object):
         exit(1)
 
     # Got sick of implimenting this all the time.
-    def add_or_incriment(dic, keys, value):
+    def add_or_incriment(self, dic, keys, value):
         """Assign to nested dic, e.g. 
         add_or_incriment(dic, ['key1', 'key2', 'key3'], value)
         {key1:{key2:{key3:1}}}
