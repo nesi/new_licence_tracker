@@ -7,6 +7,7 @@ import yaml
 conf = yaml.load(open("config.yml"), Loader=yaml.FullLoader)
 
 
+
 class log():
     """Placeholder. Should be replaced with actual notification"""
     debug = info = warning = error = print
@@ -135,7 +136,7 @@ class lmutil(PollMethod):
             r"^(?:Users of )*(?P<feature>\S+):  \(Total of (?P<issued>\d+) license.? issued;  Total of (?P<inuse>\d*) license.? in use\)(?:\n\n.+\n.+\n(?P<userblok>(?:\n.+)*))?", flags=re.M)
         # User/host pattern
         cmd_string = f"utils/linx64/lmutil lmstat -a -c {self.licence['licence_file_path']}"
-        cmd_out = subprocess.check_output(cmd_string)
+        cmd_out = subprocess.check_output(cmd_string, shell=True).decode('utf-8')
         # TODO Match server details
         # details = { **details_pattern1.search(cmd_out).groupdict(), **details_pattern2.search(cmd_out).groupdict()}
         # log.debug("Server Misc: " + str(details)) def do_some_B_thing( self ):
@@ -165,12 +166,12 @@ class ansysli_util(PollMethod):
 
         # Run printavail command and get output.
         cmd_out_feature = subprocess.check_output(
-            f"{ansys_cmd_prefix} -printavail")
+            f"{ansys_cmd_prefix} -printavail", shell=True).decode('utf-8')
 
         # If tracking users, seperate command must be run.
         if self.licence["server_track_users"]:
             self.cmd_out_user = subprocess.check_output(
-                f"{ansys_cmd_prefix} -liusage")
+                f"{ansys_cmd_prefix} -liusage", shell=True).decode('utf-8')
         return feature_pattern.finditer(cmd_out_feature)
 
     def _yield_users(self, feature):
