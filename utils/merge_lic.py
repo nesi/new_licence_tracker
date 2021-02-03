@@ -25,6 +25,7 @@ if __name__ == '__main__':
     for licence in combind_licences:
         for key, feature in licence["tracked_features"].items():
             licence["tracked_features"][key]={**default_feature, **feature}
-    with open(sys.argv[3], "w") as f: 
+    with open(sys.argv[3], "w+") as f: 
+        f.write(f"# This file was made by merging '{sys.argv[1]}' and '{sys.argv[1]}'.\n# DONT MAKE CHANGES HERE\n")
         yaml.dump(list(combind_licences), f, sort_keys=True)
 

@@ -1,22 +1,23 @@
 #from clog import log
-import re, subprocess
+import re
+import subprocess
 import yaml
 
+# Load config
 conf = yaml.load(open("config.yml"), Loader=yaml.FullLoader)
+
 
 class log():
     """Placeholder. Should be replaced with actual notification"""
     debug = info = warning = error = print
 
+
 class PollMethod(object):
     """Each child class must include a '_yield_features() and '_yield_users()' method """
 
-    def __init__(self, _licence, _gauge_free, _gauge_total, _gauge_used):
+    def __init__(self, _licence, _gauge_free, _gauge_issued, _gauge_used):
         self.licence = _licence
-
-        self.gauge_free = _gauge_free
-        self.gauge_total = _gauge_total
-        self.gauge_used = _gauge_used
+        self.gauge_free, self.gauge_issued, self.gauge_used = _gauge_free, _gauge_issued, _gauge_used
 
         self.failed_attempts = 0
         self.failed_attempt_threshold = conf["fail_tolerance"]
@@ -32,7 +33,6 @@ class PollMethod(object):
         if self.failed_attempts >= self.failed_attempt_threshold:
             return
         try:
-            # if True:
             for feature_match in self._yield_features():
                 # Extract feature dictionary from regex match object
                 feature_match_dict = feature_match.groupdict()
@@ -41,19 +41,19 @@ class PollMethod(object):
                     continue
 
                 # Tags used by all of these metrics.
-                # (institution_short, faculty_short, software_name, feature, slurm_token_name)
-                common_tags = (self.licence["institution_short"], self.licence["faculty_short"], self.licence["software_name"],
-                               feature_match_dict["feature"], self.licence["tracked_features"][feature_match_dict["feature"]]["slurm_token_name"])
-                free = int(feature_match_dict['total']) - \
+                # (owner, faculty_short, software_name, feature)
+                common_tags = (self.licence["licence_owner"], self.licence["software_name"],
+                               feature_match_dict["feature"])
+                free = int(feature_match_dict['issued']) - \
                     int(feature_match_dict['inuse'])
-                total = int(feature_match_dict['total'])
+                issued = int(feature_match_dict['issued'])
 
                 self.gauge_free.add_metric(common_tags, free)
-                self.gauge_total.add_metric(common_tags, total)
+                self.gauge_issued.add_metric(common_tags, issued)
 
                 log.debug(feature_match_dict['feature'])
                 log.debug(f"free: {str(free)}")
-                log.debug(f"total: {str(total)}")
+                log.debug(f"issued: {str(issued)}")
 
                 # If recording users, do.
                 if self.licence["server_track_users"]:
@@ -132,11 +132,10 @@ class lmutil(PollMethod):
         #     r"^.* license server (?P<last_stat>.*) v(?P<version>.*)$", flags=re.M)
 
         feature_pattern = re.compile(
-            r"^(?:Users of )*(?P<feature>\S+):  \(Total of (?P<total>\d+) license.? issued;  Total of (?P<inuse>\d*) license.? in use\)(?:\n\n.+\n.+\n(?P<userblok>(?:\n.+)*))?", flags=re.M)
+            r"^(?:Users of )*(?P<feature>\S+):  \(Total of (?P<issued>\d+) license.? issued;  Total of (?P<inuse>\d*) license.? in use\)(?:\n\n.+\n.+\n(?P<userblok>(?:\n.+)*))?", flags=re.M)
         # User/host pattern
         cmd_string = f"utils/linx64/lmutil lmstat -a -c {self.licence['licence_file_path']}"
-        cmd_out = subprocess.run(cmd_string, shell=True, capture_output=True).stdout.decode('utf-8')
-
+        cmd_out = subprocess.check_output(cmd_string)
         # TODO Match server details
         # details = { **details_pattern1.search(cmd_out).groupdict(), **details_pattern2.search(cmd_out).groupdict()}
         # log.debug("Server Misc: " + str(details)) def do_some_B_thing( self ):
@@ -159,24 +158,24 @@ class ansysli_util(PollMethod):
     def _yield_features(self):
         # Matches features
         feature_pattern = re.compile(
-            r"Feature:[\s\S]*?FEATURENAME:\s(?P<feature>\S+)[\s\S]*?COUNT:\s(?P<total>\d+)[\s\S]*?USED:\s(?P<inuse>\d*)", flags=re.M)
+            r"Feature:[\s\S]*?FEATURENAME:\s(?P<feature>\S+)[\s\S]*?COUNT:\s(?P<issued>\d+)[\s\S]*?USED:\s(?P<inuse>\d*)", flags=re.M)
 
         # ansysli_util doesn't treat licences normally.
-        ansys_cmd_prefix = f"set -e;set -o pipefail;export ANSYSLMD_LICENSE_FILE=$(head -n 1 {self.licence['licence_file_path']} | sed -n -e 's/.*=//p' );utils/linx64/ansysli_util "
+        ansys_cmd_prefix = f"export ANSYSLMD_LICENSE_FILE=$(head -n 1 {self.licence['licence_file_path']} | sed -n -e 's/.*=//p' );utils/linx64/ansysli_util "
 
         # Run printavail command and get output.
-        cmd_out_feature = subprocess.run(f"{ansys_cmd_prefix} -printavail", shell=True, capture_output=True).stdout.decode('utf-8')
+        cmd_out_feature = subprocess.check_output(
+            f"{ansys_cmd_prefix} -printavail")
 
         # If tracking users, seperate command must be run.
         if self.licence["server_track_users"]:
-            self.cmd_out_user = subprocess.run(f"{ansys_cmd_prefix} -liusage", shell=True, capture_output=True).stdout.decode('utf-8')
-            # raise Exception("Cannot read") if re.match(r"for reading: Permission denied", self.cmd_out_user)
+            self.cmd_out_user = subprocess.check_output(
+                f"{ansys_cmd_prefix} -liusage")
         return feature_pattern.finditer(cmd_out_feature)
 
     def _yield_users(self, feature):
 
         user_pattern = re.compile(
             r"^(?P<user>[A-Za-z0-9]*)@(?P<host>\S*)\:\d*\s+[\d\/]+\s[\d\:]+\s+" + feature["feature"] + r"\s+(?P<count>\d*)\s+.*$", flags=re.M)
-        # raise Exception("Cannot read") if re.match(r"for reading: Permission denied", self.cmd_out_user)
 
         return user_pattern.finditer(self.cmd_out_user)

@@ -51,7 +51,7 @@ if __name__ == '__main__':
     licences = yaml.load(open(conf["licence_conf"]), Loader=yaml.FullLoader)
 
     # Common sense checks.
-    if subprocess.run("whoami", shell=True, capture_output=True).stdout.decode('utf-8') != conf["user"]:
+    if subprocess.check_output("whoami") != conf["user"]:
         log.warning(f"Run as {conf['user']} for read access on licences.")
 
     #TODO Some validation maybe?
