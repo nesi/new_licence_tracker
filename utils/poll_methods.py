@@ -1,8 +1,12 @@
-from clog import log
-import re
-import utils
+#from clog import log
+import re, subprocess
+import yaml
 
-conf = utils.load_yaml("config.yml")
+conf = yaml.load(open("config.yml"), Loader=yaml.FullLoader)
+
+class log():
+    """Placeholder. Should be replaced with actual notification"""
+    debug = info = warning = error = print
 
 class PollMethod(object):
     """Each child class must include a '_yield_features() and '_yield_users()' method """
@@ -18,7 +22,7 @@ class PollMethod(object):
         self.failed_attempt_threshold = conf["fail_tolerance"]
 
         # These patterns are used to identify NeSI resources. Compiled here for efficiency.
-        self.patterns={}
+        self.patterns = {}
         for cluster, values in conf["resources"].items():
             self.patterns[cluster] = re.compile(
                 values["pattern"], flags=re.I)
@@ -28,20 +32,22 @@ class PollMethod(object):
         if self.failed_attempts >= self.failed_attempt_threshold:
             return
         try:
-        #if True:
+            # if True:
             for feature_match in self._yield_features():
                 # Extract feature dictionary from regex match object
-                feature_match_dict = feature_match.groupdict()                  
+                feature_match_dict = feature_match.groupdict()
                 # If there are tracked features, and this is one of them.
                 if not self.licence["tracked_features"] or feature_match_dict["feature"] not in self.licence["tracked_features"]:
                     continue
-                
-                # Tags used by all of these metrics. 
+
+                # Tags used by all of these metrics.
                 # (institution_short, faculty_short, software_name, feature, slurm_token_name)
-                common_tags = ( self.licence["institution_short"], self.licence["faculty_short"], self.licence["software_name"], feature_match_dict["feature"], self.licence["tracked_features"][feature_match_dict["feature"]]["slurm_token_name"] )
-                free=int(feature_match_dict['total']) - int(feature_match_dict['inuse'])
-                total= int(feature_match_dict['total'])
-                
+                common_tags = (self.licence["institution_short"], self.licence["faculty_short"], self.licence["software_name"],
+                               feature_match_dict["feature"], self.licence["tracked_features"][feature_match_dict["feature"]]["slurm_token_name"])
+                free = int(feature_match_dict['total']) - \
+                    int(feature_match_dict['inuse'])
+                total = int(feature_match_dict['total'])
+
                 self.gauge_free.add_metric(common_tags, free)
                 self.gauge_total.add_metric(common_tags, total)
 
@@ -51,7 +57,8 @@ class PollMethod(object):
 
                 # If recording users, do.
                 if self.licence["server_track_users"]:
-                    user_dict={"offsite_user":{"offsite_host":{"offsite_host":0}}}
+                    user_dict = {"offsite_user": {
+                        "offsite_host": {"offsite_host": 0}}}
                     user_matches = self._yield_users(feature_match_dict)
                     if user_matches:
                         for user_match in user_matches:
@@ -62,21 +69,23 @@ class PollMethod(object):
                                 umd["count"]) if "count" in umd else 1
                             # For each match.
                             for cluster, pattern in self.patterns.items():
-                                hostmatch=pattern.search(umd["host"])
+                                hostmatch = pattern.search(umd["host"])
                                 if hostmatch:
-                                    utils.add_or_incriment(user_dict, [umd["user"], cluster, hostmatch.group(0)], count)
+                                    self.add_or_incriment(
+                                        user_dict, [umd["user"], cluster, hostmatch.group(0)], count)
                                     break
                             else:
-                                user_dict["offsite_user"]["offsite_host"]["offsite_host"]+=count
+                                user_dict["offsite_user"]["offsite_host"]["offsite_host"] += count
                     for user, clusters in user_dict.items():
                         for cluster, nodetypes in clusters.items():
                             for nodetype, count in nodetypes.items():
-                                self.gauge_used.add_metric(common_tags + ( user, cluster, nodetype ), count)
+                                self.gauge_used.add_metric(
+                                    common_tags + (user, cluster, nodetype), count)
                     log.debug("used: " + str(user_dict))
                     # TODO update untracked dcitionary.
-                #Reset attempts.
+                # Reset attempts.
                 self.failed_attempts = 0
-        #if False:
+        # if False:
         except Exception as e:
             self.failed_attempts += 1
             log.error(
@@ -94,6 +103,23 @@ class PollMethod(object):
             "This method should be extended by child and not called directly.")
         exit(1)
 
+    # Got sick of implimenting this all the time.
+    def add_or_incriment(dic, keys, value):
+        """Assign to nested dic, e.g. 
+        add_or_incriment(dic, ['key1', 'key2', 'key3'], value)
+        {key1:{key2:{key3:1}}}
+        """
+        def desc(dic, i, value):
+            if i < len(keys)-1:
+                if keys[i] not in dic:
+                    dic[keys[i]] = {}
+                desc(dic[keys[i]], i+1, value)
+            else:
+                dic[keys[i]] = dic[keys[i]] + \
+                    value if keys[i] in dic else value
+        desc(dic, 0, value)
+
+
 class lmutil(PollMethod):
     """lmutil is the standard tool used to check flexlm licences"""
 
@@ -109,7 +135,7 @@ class lmutil(PollMethod):
             r"^(?:Users of )*(?P<feature>\S+):  \(Total of (?P<total>\d+) license.? issued;  Total of (?P<inuse>\d*) license.? in use\)(?:\n\n.+\n.+\n(?P<userblok>(?:\n.+)*))?", flags=re.M)
         # User/host pattern
         cmd_string = f"utils/linx64/lmutil lmstat -a -c {self.licence['licence_file_path']}"
-        cmd_out = utils.run_cmd(cmd_string)
+        cmd_out = subprocess.run(cmd_string, shell=True, capture_output=True).stdout.decode('utf-8')
 
         # TODO Match server details
         # details = { **details_pattern1.search(cmd_out).groupdict(), **details_pattern2.search(cmd_out).groupdict()}
@@ -126,6 +152,7 @@ class lmutil(PollMethod):
 
         return user_pattern.finditer(feature["userblok"])
 
+
 class ansysli_util(PollMethod):
     """The method used to check ANSYS licence use"""
 
@@ -135,19 +162,21 @@ class ansysli_util(PollMethod):
             r"Feature:[\s\S]*?FEATURENAME:\s(?P<feature>\S+)[\s\S]*?COUNT:\s(?P<total>\d+)[\s\S]*?USED:\s(?P<inuse>\d*)", flags=re.M)
 
         # ansysli_util doesn't treat licences normally.
-        ansys_cmd_prefix = f"export ANSYSLMD_LICENSE_FILE=$(head -n 1 {self.licence['licence_file_path']} | sed -n -e 's/.*=//p');utils/linx64/ansysli_util"
+        ansys_cmd_prefix = f"set -e;set -o pipefail;export ANSYSLMD_LICENSE_FILE=$(head -n 1 {self.licence['licence_file_path']} | sed -n -e 's/.*=//p' );utils/linx64/ansysli_util "
 
         # Run printavail command and get output.
-        cmd_out_feature = utils.run_cmd(f"{ansys_cmd_prefix} -printavail")
+        cmd_out_feature = subprocess.run(f"{ansys_cmd_prefix} -printavail", shell=True, capture_output=True).stdout.decode('utf-8')
 
         # If tracking users, seperate command must be run.
         if self.licence["server_track_users"]:
-            self.cmd_out_user = utils.run_cmd(f"{ansys_cmd_prefix} -liusage")
-
+            self.cmd_out_user = subprocess.run(f"{ansys_cmd_prefix} -liusage", shell=True, capture_output=True).stdout.decode('utf-8')
+            # raise Exception("Cannot read") if re.match(r"for reading: Permission denied", self.cmd_out_user)
         return feature_pattern.finditer(cmd_out_feature)
 
     def _yield_users(self, feature):
 
         user_pattern = re.compile(
             r"^(?P<user>[A-Za-z0-9]*)@(?P<host>\S*)\:\d*\s+[\d\/]+\s[\d\:]+\s+" + feature["feature"] + r"\s+(?P<count>\d*)\s+.*$", flags=re.M)
+        # raise Exception("Cannot read") if re.match(r"for reading: Permission denied", self.cmd_out_user)
+
         return user_pattern.finditer(self.cmd_out_user)

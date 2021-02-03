@@ -1,11 +1,8 @@
 ---
 user: nesi-apps-admin
-path_modulelist: "../module_tracker/module_list.json"
 licence_conf: "./licences.yml"
-default_licence_conf: "./default_licences.yml"
-promethius_conf: "./utils/prometheus.yml"
 fail_tolerance: 3
-resources: 
+resources:
   mahuika:
     pattern: mahuika(?=\d{2})|(wbn|wbg|vgpuwbg|wbl|wch|wbh|wcl)(?=\d{3})
   maui:
@@ -23,5 +20,4 @@ loglevel: info
 validate: true
 soak: true
 squeue_poll_period: 60
-
-  
+path_modulelist: "../module_tracker/module_list.json"
